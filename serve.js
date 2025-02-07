@@ -4,6 +4,7 @@ const { Sequelize, DataTypes } = require('sequelize');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
+const jwt = require('jsonwebtoken'); // เพิ่มไลบรารี JWT
 
 dotenv.config();
 
@@ -212,12 +213,13 @@ app.get('/', (req, res) => {
   res.send('Hello from backend!');
 });
 
+//Post
 app.post('/users', async (req, res) => {
     console.log('Received data from frontend:', req.body); // Log ข้อมูลที่รับจาก frontend
     
-    const { name, email, password } = req.body;
+    const { username, email, password } = req.body;
     
-    if (!name || !email || !password) {
+    if (!username || !email || !password) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
   
@@ -226,8 +228,8 @@ app.post('/users', async (req, res) => {
   
     try {
       const newUser = await Users.create({
-        username: name,
-        email,
+        username: username,
+        email:email,
         password: hashedPassword,
       });
       return res.status(201).json({
@@ -238,6 +240,54 @@ app.post('/users', async (req, res) => {
       return res.status(500).json({ message: 'Error creating user', error: error.message });
     }
   });
+
+// Login Route
+app.post('/login', async (req, res) => {
+    console.log('Received login request:', req.body);
+    
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    try {
+        // ค้นหาผู้ใช้จากฐานข้อมูลโดยใช้อีเมล
+        const user = await Users.findOne({ where: { email } });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid email ' });
+        }
+
+        // ตรวจสอบรหัสผ่านที่ผู้ใช้กรอกมากับรหัสผ่านที่แฮชในฐานข้อมูล
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            console.log(user.password);
+            //console.log(password);
+            console.log(isPasswordValid);
+            return res.status(400).json({ message: 'Invalid password' });
+        }
+
+        // สร้าง JWT token (สามารถเก็บข้อมูลที่จำเป็นใน token ได้ เช่น user.id)
+        const token = jwt.sign({ userId: user.id }, 'your_jwt_secret_key', { expiresIn: '1h' });
+
+        return res.status(200).json({
+            message: 'Login successful',
+            token, // ส่งกลับ JWT token ให้ผู้ใช้
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    }
+});
+
+
 
 
 process.on('SIGINT', async () => {
