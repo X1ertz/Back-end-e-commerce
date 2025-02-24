@@ -14,12 +14,19 @@
     "argon2": "^0.41.1",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+<<<<<<< HEAD
     "express-session": "^1.18.1",
+=======
+>>>>>>> 4c204755391f8ee2cf70983de398957a16acc11b
     "jsonwebtoken": "^9.0.2",
     "sequelize": "^6.37.5",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }
