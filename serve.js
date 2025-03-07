@@ -6,7 +6,8 @@ const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
-
+const multer = require("multer");
+const path = require("path");
 dotenv.config();
 
 const app = express();
@@ -176,17 +177,21 @@ const Orders = sequelize.define('Orders', {
         },
         allowNull: false
     },
-    discountcodeid: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: DiscountCode,
-            key: 'id'
-        },
-        allowNull: true // อนุญาตให้ไม่มีส่วนลดได้
-    },
+    discountcode: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+},
     status: {
         type: DataTypes.STRING,
         defaultValue: 'wait',
+    },
+    paymentproof:{
+        type:DataTypes.STRING,
+        allowNull: true,
+    },
+    shippingaddress:{
+        type:DataTypes.STRING,
+        allowNull: true
     }
 });
 
@@ -224,7 +229,11 @@ const Orderdetail = sequelize.define('Orderdetail', {
     },
     discount: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true
+    },
+    itemSize:{
+        type:DataTypes.STRING,
+        allowNull:true
     }
 });
 
@@ -243,21 +252,12 @@ const UsedDiscounts = sequelize.define('UsedDiscounts', {
         },
         allowNull: false
     },
-    discountcodeid: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: DiscountCode,
-            key: 'id'
-        },
-        allowNull: false
+    discountcode: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
-}, {
-    uniqueKeys: {
-        unique_user_discount: {
-            fields: ['userid', 'discountcodeid']
-        }
-    }
-});
+}
+);
 
 // User-Order relationship: A user can have many orders
 Users.hasMany(Orders, { foreignKey: 'userid' });
@@ -280,9 +280,9 @@ DiscountCode.hasMany(Orders, { foreignKey: 'discountcodeid' });
 
 Users.hasMany(UsedDiscounts, { foreignKey: 'userid' });
 DiscountCode.hasMany(UsedDiscounts, { foreignKey: 'discountcodeid' });
-
 UsedDiscounts.belongsTo(Users, { foreignKey: 'userid' });
 UsedDiscounts.belongsTo(DiscountCode, { foreignKey: 'discountcodeid' });
+
 sequelize.authenticate()
     .then(() => console.log('Connection has been established successfully.'))
     .catch(error => console.error('Unable to connect to the database:', error));
@@ -295,35 +295,36 @@ app.get('/', (req, res) => {
   res.send('Hello from backend!');
 });
 
-//Post
+
 app.post('/users', async (req, res) => {
-    console.log('Received data from frontend:', req.body); // Log ข้อมูลที่รับจาก frontend
+    console.log('Received data from frontend:', req.body); 
 
-    const { username, email, password } = req.body;
+    const { username, email, password,role ,adress} = req.body;
 
-    // ตรวจสอบว่า fields ทั้งหมดมีข้อมูลหรือไม่
+    
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
     try {
-        // ตรวจสอบว่าอีเมลที่ผู้ใช้ใส่มามีในฐานข้อมูลแล้วหรือยัง
+
         const existingUser = await Users.findOne({ where: { email } });
         if (existingUser) {
             return res.status(400).json({ message: 'Email already in use' });
         }
 
-        // สร้าง salt และแฮชรหัสผ่าน
-        const salt = await bcrypt.genSalt(10);  // ตั้งค่าที่ 10 เป็นค่าแนะนำ
+
+        const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         
-        console.log('Hashed password:', hashedPassword); // Log ค่า hashed password
+        console.log('Hashed password:', hashedPassword);
 
-        // สร้างผู้ใช้ใหม่ในฐานข้อมูล
         const newUser = await Users.create({
             username: username,
             email: email,
             password: hashedPassword,
+            role: role,
+            adress:adress
         });
 
         return res.status(201).json({
@@ -332,6 +333,7 @@ app.post('/users', async (req, res) => {
                 id: newUser.id,
                 username: newUser.username,
                 email: newUser.email,
+                adress:newUser.adress
             },
         });
     } catch (error) {
@@ -339,6 +341,24 @@ app.post('/users', async (req, res) => {
         return res.status(500).json({ message: 'Error creating user', error: error.message });
     }
 });
+app.get("/users/:userId", async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await Users.findByPk(userId, {
+            attributes: ["id", "username", "email"],
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
 app.get('/user', async (req, res) => {
     if (!req.session.userId) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -358,6 +378,25 @@ app.get('/user', async (req, res) => {
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+app.get("/users", async (req, res) => {
+    try {
+      const users = await Users.findAll();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+app.delete("/users/:id", async (req, res) => {
+    try {
+      const user = await Users.findByPk(req.params.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+  
+      await user.destroy();
+      res.json({ message: "User deleted" });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to delete user" });
+    }
+  });
 
 app.post('/login', async (req, res) => {
     console.log('Received login request:', req.body);
@@ -369,14 +408,14 @@ app.post('/login', async (req, res) => {
     }
 
     try {
-        // ค้นหาผู้ใช้จาก email ในฐานข้อมูล
+       
         const user = await Users.findOne({ where: { email } });
 
         if (!user) {
             return res.status(400).json({ message: 'Invalid email' });
         }
 
-        // ตรวจสอบรหัสผ่านที่เข้ารหัสแล้ว
+ 
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         console.log("Compare Result:", isPasswordValid);
@@ -385,7 +424,7 @@ app.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Invalid password' });
         }
 
-        // ตั้งค่า session เมื่อผู้ใช้ล็อกอินสำเร็จ
+ 
         req.session.userId = user.id;
         req.session.username = user.username;
 
@@ -413,18 +452,61 @@ app.get("/products", async (req, res) => {
     }
   });
 
-  app.get('/discount', async (req, res) => {
-    try {   
-      const code = await DiscountCode.findAll();
-      res.json(code);
+  app.get("/discount", async (req, res) => {
+    try {
+      const discounts = await DiscountCode.findAll();
+  
+      const discountsWithUsageDetails = [];
+      for (let discount of discounts) {
+        const usageCount = await UsedDiscounts.count({
+          where: { discountcode: discount.discount_name },
+        });
+  
+        // ดึงข้อมูลผู้ใช้ที่ใช้คูปองนี้
+        const usersUsedDiscount = await UsedDiscounts.findAll({
+          where: { discountcode: discount.discount_name },
+          include: [
+            {
+              model: Users,  // เชื่อมโยงกับโมเดล Users
+              required: false, // ใช้ false ถ้าไม่ต้องการให้เป็น INNER JOIN
+              attributes: ['id', 'username'], // ดึงข้อมูล id และ name ของผู้ใช้
+            }
+          ],
+        });
+  
+        discountsWithUsageDetails.push({
+          ...discount.toJSON(),
+          usageCount,
+          usersUsedDiscount,
+        });
+      }
+  
+      res.status(200).json(discountsWithUsageDetails);
     } catch (error) {
-      console.error('Error fetching discount codes:', error);
-      res.status(500).json({ error: 'Failed to fetch discount codes' });
+      res.status(500).json({ message: "ไม่สามารถดึงข้อมูลคูปองได้", error });
     }
   });
+  
+  
+  app.get("/discount/:discountId", async (req, res) => {
+    try {
+        const { discountId } = req.params;
+        const discount = await DiscountCode.findByPk(discountId, {
+            attributes: ["id", "discount_name", "percentage"],
+        });
+
+        if (!discount) {
+            return res.status(404).json({ message: "Discount not found" });
+        }
+
+        res.json(discount);
+    } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
 
 
-// Login Route
 app.post('/login', async (req, res) => {
     console.log('Received login request:', req.body);
 
@@ -435,33 +517,33 @@ app.post('/login', async (req, res) => {
     }
 
     try {
-        // ค้นหาผู้ใช้จากฐานข้อมูลโดยใช้อีเมล
+       
         const user = await Users.findOne({ where: { email } });
 
         if (!user) {
             return res.status(400).json({ message: 'Invalid email ' });
         }
 
-        // Log รหัสผ่านที่แฮชในฐานข้อมูล และรหัสผ่านที่ผู้ใช้กรอก
-        console.log('Stored hashed password:', user.password);  // รหัสผ่านที่แฮชจากฐานข้อมูล
-        console.log('Password entered by user:', password);  // รหัสผ่านที่กรอกมาจากผู้ใช้
+       
+        console.log('Stored hashed password:', user.password); 
+        console.log('Password entered by user:', password); 
 
-        // ตรวจสอบรหัสผ่านที่ผู้ใช้กรอกมากับรหัสผ่านที่แฮชในฐานข้อมูล
+    
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
-        // Log ผลการเปรียบเทียบ
+      
         console.log('Password valid:', isPasswordValid);
 
         if (!isPasswordValid) {
             return res.status(400).json({ message: 'Invalid password' });
         }
 
-        // สร้าง JWT token (สามารถเก็บข้อมูลที่จำเป็นใน token ได้ เช่น user.id)
+     
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET_KEY, { expiresIn: process.env.JWT_EXPIRATION });
 
         return res.status(200).json({
             message: 'Login successful',
-            token, // ส่งกลับ JWT token ให้ผู้ใช้
+            token,
             user: {
                 id: user.id,
                 username: user.username,
@@ -474,25 +556,21 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// Update User Route
-app.put('/update-user', async (req, res) => {
+
+app.put('/users/:id', async (req, res) => {
     console.log('Received update request:', req.body);
 
-    const { userId, username, email, password } = req.body;
-
-    if (!userId) {
-        return res.status(400).json({ message: 'User ID is required' });
-    }
+    const userId = req.params.id;
+    const { username, email, password,role,adress } = req.body;
 
     try {
-        // ค้นหาผู้ใช้จากฐานข้อมูลโดยใช้ userId
+
         const user = await Users.findOne({ where: { id: userId } });
 
         if (!user) {
-            return res.status(400).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'User not found' });
         }
 
-        // ถ้ามีการเปลี่ยนแปลงอีเมล ตรวจสอบว่ามีอีเมลนี้ในฐานข้อมูลหรือยัง
         if (email && email !== user.email) {
             const existingUser = await Users.findOne({ where: { email } });
             if (existingUser) {
@@ -500,20 +578,19 @@ app.put('/update-user', async (req, res) => {
             }
         }
 
-        // ถ้ามีการเปลี่ยนแปลงรหัสผ่าน
-        let hashedPassword = user.password; // รหัสผ่านเดิม
+        let hashedPassword = user.password;
         if (password) {
-            // สร้าง salt และแฮชรหัสผ่านใหม่
-            const salt = await bcrypt.genSalt(10);  // ตั้งค่าที่ 10 เป็นค่าแนะนำ
+            const salt = await bcrypt.genSalt(10);
             hashedPassword = await bcrypt.hash(password, salt);
         }
 
-        // ทำการอัปเดตข้อมูลผู้ใช้
-        user.username = username || user.username;
-        user.email = email || user.email;
-        user.password = hashedPassword;
-
-        await user.save();
+        await user.update({
+            username: username || user.username,
+            email: email || user.email,
+            password: hashedPassword,
+            role:role,
+            adress:adress
+        });
 
         return res.status(200).json({
             message: 'User updated successfully',
@@ -524,42 +601,21 @@ app.put('/update-user', async (req, res) => {
             },
         });
     } catch (error) {
-        console.error(error);
+        console.error('Error updating user:', error);
         return res.status(500).json({ message: 'Error updating user', error: error.message });
     }
 });
 
-// Delete User Route
-app.delete('/delete-user', async (req, res) => {
-    console.log('Received delete request:', req.body);
-
-    const { userId } = req.body;
-
-    if (!userId) {
-        return res.status(400).json({ message: 'User ID is required' });
-    }
-
+app.get('/categories',async(req,res)=>{
     try {
-        // ค้นหาผู้ใช้จากฐานข้อมูลโดยใช้ userId
-        const user = await Users.findOne({ where: { id: userId } });
-
-        if (!user) {
-            return res.status(400).json({ message: 'User not found' });
-        }
-
-        // ลบผู้ใช้จากฐานข้อมูล
-        await user.destroy();
-
-        return res.status(200).json({
-            message: 'User deleted successfully',
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Error deleting user', error: error.message });
-    }
+        const categories = await Category.findAll();
+        res.json(categories);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
 });
 
-// Add Category
 app.post('/categories', async (req, res) => {
     const { Categoryname } = req.body;
 
@@ -576,7 +632,6 @@ app.post('/categories', async (req, res) => {
     }
 });
 
-// Update Category
 app.put('/categories/:id', async (req, res) => {
     const categoryId = req.params.id;
     const { Categoryname } = req.body;
@@ -600,7 +655,6 @@ app.put('/categories/:id', async (req, res) => {
     }
 });
 
-// Delete Category
 app.delete('/categories/:id', async (req, res) => {
     const categoryId = req.params.id;
 
@@ -617,44 +671,6 @@ app.delete('/categories/:id', async (req, res) => {
     }
 });
 
-// Add Product
-app.post('/products', async (req, res) => {
-    const { productname, categoryID, unitprice, quantity } = req.body;
-
-    if (!productname || !categoryID || !unitprice || !quantity) {
-        return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    try {
-        const product = await Products.create({ productname, categoryID, unitprice, quantity });
-        return res.status(201).json(product);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Error creating product', error: error.message });
-    }
-});
-
-// Update Product
-app.put('/products/:id', async (req, res) => {
-    const productId = req.params.id;
-    const { productname, categoryID, unitprice, quantity } = req.body;
-
-    try {
-        const [updated] = await Products.update({ productname, categoryID, unitprice, quantity }, { where: { id: productId } });
-
-        if (updated) {
-            const updatedProduct = await Products.findByPk(productId);
-            return res.status(200).json(updatedProduct);
-        } else {
-            return res.status(404).json({ message: 'Product not found' });
-        }
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Error updating product', error: error.message });
-    }
-});
-
-// Delete Product
 app.delete('/products/:id', async (req, res) => {
     const productId = req.params.id;
 
@@ -671,61 +687,497 @@ app.delete('/products/:id', async (req, res) => {
     }
 });
 
-// Add Order
-app.post('/orders', async (req, res) => {
-    const { userid, status } = req.body;
-
-    if (!userid) {
-        return res.status(400).json({ message: 'User ID is required' });
-    }
-
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, "uploads/");
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    },
+  });
+  
+const upload = multer({ storage });
+app.post("/products", upload.single("image"), async (req, res) => {
     try {
-        const order = await Orders.create({ userid, status });
-        return res.status(201).json(order);
+        const { productname, categoryID, unitprice, quantity, description, sizes } = req.body;
+        const imageurl = req.file ? `/uploads/${req.file.filename}` : null; // URL ของรูปภาพ
+
+        const newProduct = await Products.create({
+            productname,
+            categoryID,
+            unitprice,
+            quantity,
+            imageurl,
+            description,
+            sizes: sizes ? JSON.parse(sizes) : [],
+        });
+
+        res.status(201).json(newProduct);
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Error creating order', error: error.message });
+        console.error("Error adding product:", error);
+        res.status(500).json({ message: "Failed to add product" });
+    }
+});
+app.put("/products/:id", upload.single("image"), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { productname, categoryID, unitprice, quantity, description, sizes } = req.body;
+        const product = await Products.findByPk(id);
+
+        if (!product) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        const imageurl = req.file ? `/uploads/${req.file.filename}` : product.imageUrl;
+
+        await product.update({
+            productname,
+            categoryID,
+            unitprice,
+            quantity,
+            imageurl,
+            description,
+            sizes: sizes ? JSON.parse(sizes) : [],
+        });
+
+        res.json(product);
+    } catch (error) {
+        console.error("Error updating product:", error);
+        res.status(500).json({ message: "Failed to update product" });
     }
 });
 
-// Update Order
-app.put('/orders/:id', async (req, res) => {
-    const orderId = req.params.id;
-    const { status } = req.body;
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+
+
+app.post("/order", upload.single("paymentProof"), async (req, res) => {
+    try {
+      const userId = req.body.userId;
+      const items = JSON.parse(req.body.items);
+      const totalAmount = req.body.totalAmount;
+      const discountUsed = req.body.discountUsed ? JSON.parse(req.body.discountUsed) : null;
+      const shippingAddress = req.body.shippingAddress;
+      const paymentProofPath = req.file ? `/uploads/${req.file.filename}` : null;
+  
+      console.log("📌 Received Order Data:", req.body);
+  
+      if (!userId || !items || !totalAmount || !paymentProofPath) {
+        return res.status(400).json({ message: "Missing required fields", error: "Validation error" });
+      }
+  
+      const user = await Users.findByPk(userId);
+      if (!user) {
+        return res.status(400).json({ message: "User not found" });
+      }
+  
+      const order = await Orders.create({
+        userid: userId,
+        discountcode: discountUsed ? discountUsed.id : 0,
+        status: "pending",
+        shippingaddress: shippingAddress,
+        paymentproof: paymentProofPath,
+      });
+  
+      console.log("✅ Order Created:", order.id);
+  
+      const orderDetails = items.map((item) => ({
+        orderid: order.id,
+        productid: item.productId,
+        unitprice: item.unitPrice,
+        quantity: item.quantity,
+        itemSize: item.sizes,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+  
+      await Orderdetail.bulkCreate(orderDetails);
+      console.log("✅ Order Details Saved!");
+  
+      if (discountUsed) {
+        await UsedDiscounts.create({
+          userid: userId,
+          discountcode: discountUsed.code,
+        });
+        console.log("✅ Used Discount Saved!");
+      }
+  
+      res.status(201).json({ message: "Order placed successfully!", orderId: order.id });
+    } catch (error) {
+      console.error("❌ Error saving order:", error);
+      res.status(500).json({ message: "Failed to place order", error: error.message });
+    }
+  });
+  app.post("/admin/order", upload.single("image"), async (req, res) => {
+    try {
+        console.log("📌 Received Request Body:", req.body);
+
+        const { username, status, shippingAddress, discountCode } = req.body;
+        let products = [];
+        let quantities = [];
+
+
+        if (req.body.selectedProducts && req.body.quantities) {
+    
+            try {
+     
+                if (typeof req.body.selectedProducts === 'string') {
+                    products = JSON.parse(req.body.selectedProducts);
+                } else {
+                    products = req.body.selectedProducts;
+                }
+
+                if (typeof req.body.quantities === 'string') {
+                    quantities = JSON.parse(req.body.quantities);
+                } else {
+                    quantities = req.body.quantities;
+                }
+
+            } catch (error) {
+                return res.status(400).json({ message: "Invalid JSON format for selectedProducts or quantities" });
+            }
+        } else {
+            return res.status(400).json({ message: "selectedProducts or quantities are missing" });
+        }
+
+
+        const image = req.file ? `/uploads/${req.file.filename}` : null;
+
+        console.log("📌 Parsed Data:", { products, quantities, username, status, shippingAddress, discountCode, image });
+
+    
+        if (!username || !products.length || !quantities.length || !image) {
+            return res.status(400).json({ message: "Missing required fields", error: "Validation error" });
+        }
+
+
+        const user = await Users.findOne({ where: { username } });
+        if (!user) {
+            return res.status(400).json({ message: "User not found" });
+        }
+
+
+        const order = await Orders.create({
+            userid: user.id,
+            status,
+            shippingaddress: shippingAddress,
+            discountcode: discountCode,
+            paymentproof: image,
+        });
+
+        console.log("✅ Order Created:", order.id);
+
+        const orderDetails = [];
+        let totalAmount = 0;
+
+        for (let i = 0; i < products.length; i++) {
+            const product = await Products.findByPk(products[i]);
+            if (!product) {
+                return res.status(400).json({ message: `Product with ID ${products[i]} not found` });
+            }
+
+            const unitPrice = product.unitprice;
+            console.log("xxxxxxx:",unitPrice)
+            const quantity = quantities[i];
+            const totalPrice = unitPrice * quantity;
+            totalAmount += totalPrice;
+
+            orderDetails.push({
+                orderid: order.id,
+                productid: products[i],
+                unitprice: unitPrice,
+                quantity,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            });
+        }
+
+        await Orders.update({ totalAmount }, { where: { id: order.id } });
+
+        await Orderdetail.bulkCreate(orderDetails);
+        console.log("✅ Order Details Saved!");
+
+        if (discountCode) {
+            const discount = await DiscountCode.findOne({ where: { id: discountCode } });
+            if (discount) {
+                await UsedDiscounts.create({
+                    userid: user.id,
+                    discountcode: discount.discount_name,
+                });
+                console.log("✅ Used Discount Saved!");
+            }
+        }
+
+        res.status(201).json({ message: "Order placed successfully!", orderId: order.id, totalAmount });
+    } catch (error) {
+        console.error("❌ Error saving order:", error);
+        res.status(500).json({ message: "Failed to place order", error: error.message });
+    }
+});
+
+app.post('/discounts/check', async (req, res) => {
+    const { code } = req.body;
+    console.log("Received code:", code); 
+    try {
+        const discount = await DiscountCode.findOne({ where: { discount_name: code } });
+        
+        const Useddiscount = await UsedDiscounts.findOne({ where: { discountcode: code } });
+
+        if (Useddiscount) {
+            console.log("⚠️ Discount code in use:", code);
+            return res.status(400).json({
+                message: "Discount code in use"
+            });
+        }
+
+        if (!discount) {
+            console.log("⚠️ Invalid discount code attempted:", code);
+            return res.status(404).json({
+                message: "Invalid discount code"
+            });
+        }
+
+
+        console.log("✅ Valid discount found:", discount);
+        return res.json({
+            percentage: discount.percentage,
+            id: discount.id,
+            code:discount.discount_name,
+            message: `✅ Applied ${discount.percentage}% discount`
+        });
+
+    } catch (error) {
+        console.error("❌ Error checking discount code:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+app.get('/orders',async(req,res)=>{
+    try{
+        const orders = await Orders.findAll();
+        res.json(orders);
+    }catch(error){
+        console.log("Error to get orders",error);
+        return res.status(400).json({message:"Internal Server Error"})
+    }
+});
+
+app.get('/orders/:id', async (req, res) => {
+    const { id } = req.params;
 
     try {
-        const [updated] = await Orders.update({ status }, { where: { id: orderId } });
 
-        if (updated) {
-            const updatedOrder = await Orders.findByPk(orderId);
-            return res.status(200).json(updatedOrder);
-        } else {
+        const order = await Orders.findOne({
+            where: { id },
+            include: [{
+                model: Orderdetail,
+                include: {
+                    model: Products,
+                }
+            }]
+        });
+
+        if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
+
+
+        const orderData = {
+            id: order.id,
+            status: order.status,
+            userid: order.userid,
+            paymentproof: order.paymentproof,
+            shippingaddress: order.shippingaddress,
+            discount:order.discountcode,
+            orderdetails: order.Orderdetails.map(orderdetail => ({
+                unitprice: orderdetail.unitprice,
+                quantity: orderdetail.quantity,
+                productid: orderdetail.productid,
+                product: orderdetail.Product, 
+                size: orderdetail.itemSize
+            }))
+        };
+
+
+        res.json(orderData);
+
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Error updating order', error: error.message });
+        console.error('Error fetching order details:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 });
 
-// Delete Order
-app.delete('/orders/:id', async (req, res) => {
-    const orderId = req.params.id;
 
+app.put("/orders/:orderId", async (req, res) => {
     try {
-        const deleted = await Orders.destroy({ where: { id: orderId } });
-        if (deleted) {
-            return res.status(200).json({ message: 'Order deleted' });
-        } else {
+        const { orderId } = req.params;
+        const { status, shippingaddress, size } = req.body;
+
+        const order = await Orders.findByPk(orderId);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        order.status = status;
+        order.shippingaddress = shippingaddress;
+        await order.save();
+
+        res.json(order);
+    } catch (error) {
+        console.error("Error updating order:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+app.patch('/products/:productId/update-stock', async (req, res) => {
+    const { productId } = req.params;
+    const { size, quantity } = req.body; 
+    try {
+        const product = await Products.findByPk(productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        const sizes = JSON.parse(product.sizes);
+
+        const selectedSize = sizes.find(s => s.sizeName === size);
+        if (!selectedSize) {
+            return res.status(400).json({ message: 'Invalid size selected' });
+        }
+
+
+        if (selectedSize.stock < Math.abs(quantity)) {
+            return res.status(400).json({ message: 'Insufficient stock for this size' });
+        }
+
+        selectedSize.stock += quantity;  
+        const updatedTotalQuantity = sizes.reduce((acc, curr) => acc + curr.stock, 0);
+        product.quantity = updatedTotalQuantity;
+
+        product.sizes = JSON.stringify(sizes);
+        await product.save();
+
+        res.status(200).json({ message: 'Stock updated successfully', product });
+    } catch (error) {
+        console.error('Error updating stock:', error);
+        res.status(500).json({ message: 'Error updating stock', error });
+    }
+});
+
+
+app.put('/orders/:orderId/items/:productId', async (req, res) => {
+    try {
+        const { orderId, productId } = req.params;
+        const { quantity } = req.body;
+
+
+        const orderDetail = await Orderdetail.findOne({
+            where: { orderid: orderId, productid: productId }
+        });
+
+        if (!orderDetail) {
+            return res.status(404).json({ message: 'Order item not found' });
+        }
+
+        
+        orderDetail.quantity = quantity;
+        await orderDetail.save();
+
+        
+        const updatedOrder = await Orders.findOne({
+            where: { id: orderId },
+            include: [{ model: Orderdetail }]
+        });
+
+        res.json(updatedOrder);
+    } catch (error) {
+        console.error('Error updating order item quantity:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+app.post('/orders/:orderId/add-product', async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { productid, quantity } = req.body;
+        console.log(req.body);
+        
+
+        if (!productid || !quantity || quantity <= 0) {
+            return res.status(400).json({ message: 'Invalid product data' });
+        }
+
+  
+        const order = await Orders.findByPk(orderId);
+        if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
+
+
+        const product = await Products.findByPk(productid);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        const unitprice = product.unitprice;
+
+
+        let orderDetail = await Orderdetail.findOne({
+            where: { orderid: orderId, productid }
+        });
+
+        if (orderDetail) {
+            orderDetail.quantity += quantity;
+            await orderDetail.save();
+        } else {
+            orderDetail = await Orderdetail.create({
+                orderid: orderId,
+                productid,
+                quantity,
+                unitprice 
+            });
+        }
+
+        const updatedOrder = await Orders.findOne({
+            where: { id: orderId },
+            include: [{ model: Orderdetail }]
+        });
+
+        res.status(200).json(updatedOrder);
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Error deleting order', error: error.message });
+        console.error('Error adding product to order:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 });
 
-// Add Order Detail
+app.delete('/orders/:orderId/item/:itemId', async (req, res) => {
+    const { orderId, itemId } = req.params;
+    try {
+        const result = await Orderdetail.destroy({ where: { productid: itemId, orderId } });
+        if (result) {
+            res.json({ message: "Item deleted successfully" });
+        } else {
+            res.status(404).json({ error: "Item not found" });
+        }
+    } catch (error) {
+        console.error('Error deleting item:', error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+app.delete('/orders/:orderId', async (req, res) => {
+    const { orderId} = req.params;
+    try {
+        const result = await Orders.destroy({ where: { id: orderId } });
+        if (result) {
+            res.json({ message: "Order deleted successfully" });
+        } else {
+            res.status(404).json({ error: "Order not found" });
+        }
+    } catch (error) {
+        console.error('Error deleting item:', error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
 app.post('/orderdetails', async (req, res) => {
     const { orderid, unitprice, quantity, productid, discount } = req.body;
 
@@ -742,7 +1194,7 @@ app.post('/orderdetails', async (req, res) => {
     }
 });
 
-// Update Order Detail
+
 app.put('/orderdetails/:id', async (req, res) => {
     const orderDetailId = req.params.id;
     const { orderid, unitprice, quantity, productid, discount } = req.body;
@@ -762,7 +1214,7 @@ app.put('/orderdetails/:id', async (req, res) => {
     }
 });
 
-// Delete Order Detail
+
 app.delete('/orderdetails/:id', async (req, res) => {
     const orderDetailId = req.params.id;
 
@@ -779,14 +1231,150 @@ app.delete('/orderdetails/:id', async (req, res) => {
     }
 });
 
+app.post("/discount", async (req, res) => {
+    const { discount_name, percentage } = req.body;
+    if (!discount_name || !percentage) {
+        return res.status(400).json({ message: "Invalid data" });
+    }
 
+    try {
+        const newDiscount = await DiscountCode.create({ discount_name, percentage });
+        res.status(201).json(newDiscount);
+    } catch (error) {
+        res.status(500).json({ message: "Failed to create discount code", error });
+    }
+});
 
+app.delete("/discount/:id", async (req, res) => {
+    const { id } = req.params;
 
+    try {
 
+        const discount = await DiscountCode.findByPk(id);
 
+        if (!discount) {
+            return res.status(404).json({ message: "Discount code not found" });
+        }
 
+        await discount.destroy();
 
-    
+        res.status(200).json({ message: "Discount code deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to delete discount code", error });
+    }
+});
+
+app.put("/discount/:id", async (req, res) => {
+    const { id } = req.params;
+    const { discount_name, percentage } = req.body;
+
+    if (!discount_name || !percentage) {
+        return res.status(400).json({ message: "Invalid data" });
+    }
+
+    try {
+        const discount = await DiscountCode.findByPk(id);
+
+        if (!discount) {
+            return res.status(404).json({ message: "Discount code not found" });
+        }
+
+        discount.discount_name = discount_name;
+        discount.percentage = percentage;
+        await discount.save();
+
+        res.status(200).json(discount);
+    } catch (error) {
+        res.status(500).json({ message: "Failed to update discount code", error });
+    }
+});
+app.get("/used-discounts", async (req, res) => {
+    try {
+      const usedDiscounts = await UsedDiscounts.findAll({
+        include: [
+          {
+            model: Users,
+            attributes: ['id', 'username'], // เพิ่มข้อมูลที่ต้องการจาก Users
+          },
+          {
+            model: DiscountCode,
+            attributes: ['id', 'discount_name'], // เพิ่มข้อมูลที่ต้องการจาก DiscountCode
+          },
+        ],
+      });
+  
+      res.status(200).json(usedDiscounts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch used discounts", error });
+    }
+  });
+  
+
+app.post("/used-discount", async (req, res) => {
+    const { userid, discountcode } = req.body;
+  
+    if (!userid || !discountcode) {
+      return res.status(400).json({ message: "Invalid data" });
+    }
+  
+    try {
+      const newUsedDiscount = await UsedDiscounts.create({
+        userid,
+        discountcode,
+      });
+  
+      res.status(201).json(newUsedDiscount);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create used discount", error });
+    }
+  });
+
+app.delete("/used-discount/:id", async (req, res) => {
+    const { id } = req.params;
+  
+    try {
+      const deletedDiscount = await UsedDiscounts.destroy({
+        where: { id }
+      });
+  
+      if (!deletedDiscount) {
+        return res.status(404).json({ message: "Used discount not found" });
+      }
+  
+      res.status(200).json({ message: "Used discount deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete used discount", error });
+    }
+  });
+
+  app.put("/used-discount/:id", async (req, res) => {
+    const { id } = req.params;
+    const { userid, discountcode } = req.body;
+  
+    if (!userid || !discountcode) {
+      return res.status(400).json({ message: "Invalid data" });
+    }
+  
+    try {
+
+      const usedDiscount = await UsedDiscounts.findByPk(id);
+  
+      if (!usedDiscount) {
+        return res.status(404).json({ message: "Used discount not found" });
+      }
+  
+      usedDiscount.userid = userid;
+      usedDiscount.discountcode = discountcode;
+      
+      await usedDiscount.save();
+  
+      res.status(200).json({ message: "Used discount updated successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update used discount", error });
+    }
+  });
+  
+  
 process.on('SIGINT', async () => {
     await sequelize.close();
     console.log('SQLite connection closed.');
