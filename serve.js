@@ -1,6 +1,7 @@
 // server.js
 const express = require('express');
-const { Sequelize, DataTypes } = require('sequelize');
+const { sequelize, DataTypes } = require('./models/models');
+const { Users, Category, Products, DiscountCode, Orders, Orderdetail, UsedDiscounts } = require('./models/models');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
@@ -18,29 +19,14 @@ app.use(session({
     saveUninitialized: true,
     cookie: { secure: false }
 }));
+
 // Middlewares
 app.use(express.json());
 app.use(cors({
     origin: 'http://localhost:5500',
     credentials: true
 }));
-const sequelize = new Sequelize({
-    host: 'localhost',
-    dialect: 'sqlite',
-    storage: 'e-commerce.sqlite',
-    retry: {
-        max: 5,
-        match: [/SQLITE_BUSY/],
-        backoffBase: 1000,
-        backoffExponent: 1.5
-    },
-    pool: {
-        max: 5,
-        min: 0,
-        acquire: 30000,
-        idle: 10000
-    }
-});
+
 
 (async () => {
     await sequelize.query("PRAGMA journal_mode=WAL;");
@@ -48,248 +34,20 @@ const sequelize = new Sequelize({
 })();
 
 
-//database create here
-const Users = sequelize.define('Users', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-    },
-    username: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    password: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-    email: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-    },
-    role: {
-        type: DataTypes.STRING,
-        defaultValue: 'member',
-    },
-    adress:{
-        type: DataTypes.STRING,
-        allowNull: true,
-    }
-   
-}, {
-
-        
-});
-
-// Category Model
-const Category = sequelize.define('Category', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-    },
-    Categoryname: {
-        type: DataTypes.STRING,
-        allowNull: true
-    }
-});
-
-// Products Model
-const Products = sequelize.define('Products', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-    },
-    productname: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-    categoryID: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: Category,
-            key: 'id'
-        },
-        allowNull: true
-    },
-    unitprice: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    quantity: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    imageurl:{
-        type: DataTypes.STRING,
-        allowNull: true
-    },
-    description:{
-        type: DataTypes.STRING,
-        allowNull: true
-    },
-    sizes: {
-        type: DataTypes.JSONB,
-        allowNull: true,
-      }
-});
-const DiscountCode = sequelize.define('DiscountCode', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false,
-    },
-    discount_name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true
-    },
-    percentage: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    amount: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    }
-});
-
-
-// Orders Model
-const Orders = sequelize.define('Orders', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-    },
-    userid: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: Users,
-            key: 'id'
-        },
-        allowNull: false
-    },
-    discountcode: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-},
-    status: {
-        type: DataTypes.STRING,
-        defaultValue: 'wait',
-    },
-    paymentproof:{
-        type:DataTypes.STRING,
-        allowNull: true,
-    },
-    shippingaddress:{
-        type:DataTypes.STRING,
-        allowNull: true
-    }
-});
-
-// OrderDetails Model
-const Orderdetail = sequelize.define('Orderdetail', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-    },
-    orderid: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: Orders,
-            key: 'id'
-        },
-        allowNull: true
-    },
-    unitprice: {
-        type: DataTypes.INTEGER,
-        allowNull: false  
-    },
-    quantity: {
-        type: DataTypes.INTEGER,
-        allowNull: false  
-    },
-    productid: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: Products,
-            key: 'id'
-        },
-        allowNull: true
-    },
-    discount: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    itemSize:{
-        type:DataTypes.STRING,
-        allowNull:true
-    }
-});
-
-const UsedDiscounts = sequelize.define('UsedDiscounts', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-    },
-    userid: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: Users,
-            key: 'id'
-        },
-        allowNull: false
-    },
-    discountcode: {
-        type: DataTypes.STRING,
-        allowNull: true
-    }
-}
-);
-
-// User-Order relationship: A user can have many orders
-Users.hasMany(Orders, { foreignKey: 'userid' });
-Orders.belongsTo(Users, { foreignKey: 'userid' });
-
-// Category-Product relationship: A category can have many products
-Category.hasMany(Products, { foreignKey: 'categoryID' });
-Products.belongsTo(Category, { foreignKey: 'categoryID' });
-
-// Order-Orderdetail relationship: An order can have many order details
-Orders.hasMany(Orderdetail, { foreignKey: 'orderid' });
-Orderdetail.belongsTo(Orders, { foreignKey: 'orderid' });
-
-// Product-Orderdetail relationship: A product can appear in many order details
-Products.hasMany(Orderdetail, { foreignKey: 'productid' });
-Orderdetail.belongsTo(Products, { foreignKey: 'productid' });
-
-Orders.belongsTo(DiscountCode, { foreignKey: 'discountcodeid' });
-DiscountCode.hasMany(Orders, { foreignKey: 'discountcodeid' });
-
-Users.hasMany(UsedDiscounts, { foreignKey: 'userid' });
-DiscountCode.hasMany(UsedDiscounts, { foreignKey: 'discountcodeid' });
-UsedDiscounts.belongsTo(Users, { foreignKey: 'userid' });
-UsedDiscounts.belongsTo(DiscountCode, { foreignKey: 'discountcodeid' });
-
 sequelize.authenticate()
-    .then(() => console.log('Connection has been established successfully.'))
-    .catch(error => console.error('Unable to connect to the database:', error));
-    sequelize.sync()
-    .then(() => console.log('All models were synchronized successfully.'))
-    .catch(error => console.error('Error synchronizing the models:', error));
-    
+    .then(() => {
+        console.log('Connection has been established successfully.');
+
+
+        sequelize.sync({ force: false })
+            .then(() => {
+                console.log('All models were synchronized successfully.');
+            })
+            .catch(error => console.error('Error synchronizing the models:', error));
+    })
+    .catch(error => {
+        console.error('Unable to connect to the database:', error);
+    });
 
 app.get('/', (req, res) => {
   res.send('Hello from backend!');
@@ -345,7 +103,7 @@ app.get("/users/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
         const user = await Users.findByPk(userId, {
-            attributes: ["id", "username", "email"],
+            attributes: ["id", "username", "email","role","adress"],
         });
 
         if (!user) {
@@ -434,6 +192,7 @@ app.post('/login', async (req, res) => {
                 id: user.id,
                 username: user.username,
                 email: user.email,
+                role: user.role
             },
         });
     } catch (error) {
@@ -558,15 +317,13 @@ app.post('/login', async (req, res) => {
 
 
 app.put('/users/:id', async (req, res) => {
-    console.log('Received update request:', req.body);
+    console.log('Received update request xxx:', req.body);
 
     const userId = req.params.id;
-    const { username, email, password,role,adress } = req.body;
+    const { username, email, password, role, adress } = req.body; // แก้ adress เป็น address
 
     try {
-
-        const user = await Users.findOne({ where: { id: userId } });
-
+        const user = await Users.findByPk(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -578,19 +335,19 @@ app.put('/users/:id', async (req, res) => {
             }
         }
 
-        let hashedPassword = user.password;
-        if (password) {
-            const salt = await bcrypt.genSalt(10);
-            hashedPassword = await bcrypt.hash(password, salt);
-        }
-
-        await user.update({
+        let updatedFields = {
             username: username || user.username,
             email: email || user.email,
-            password: hashedPassword,
-            role:role,
-            adress:adress
-        });
+            role: role || user.role,
+            address: adress || user.adress,
+        };
+
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            updatedFields.password = await bcrypt.hash(password, salt);
+        }
+
+        await user.update(updatedFields);
 
         return res.status(200).json({
             message: 'User updated successfully',
@@ -598,6 +355,8 @@ app.put('/users/:id', async (req, res) => {
                 id: user.id,
                 username: user.username,
                 email: user.email,
+                role: user.role,
+                address: user.adress,
             },
         });
     } catch (error) {
@@ -605,6 +364,7 @@ app.put('/users/:id', async (req, res) => {
         return res.status(500).json({ message: 'Error updating user', error: error.message });
     }
 });
+
 
 app.get('/categories',async(req,res)=>{
     try {
@@ -778,6 +538,7 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
         status: "pending",
         shippingaddress: shippingAddress,
         paymentproof: paymentProofPath,
+        total:totalAmount
       });
   
       console.log("✅ Order Created:", order.id);
@@ -1294,11 +1055,11 @@ app.get("/used-discounts", async (req, res) => {
         include: [
           {
             model: Users,
-            attributes: ['id', 'username'], // เพิ่มข้อมูลที่ต้องการจาก Users
+            attributes: ['id', 'username'],
           },
           {
             model: DiscountCode,
-            attributes: ['id', 'discount_name'], // เพิ่มข้อมูลที่ต้องการจาก DiscountCode
+            attributes: ['id', 'discount_name'],
           },
         ],
       });
@@ -1308,8 +1069,7 @@ app.get("/used-discounts", async (req, res) => {
       res.status(500).json({ message: "Failed to fetch used discounts", error });
     }
   });
-  
-
+    
 app.post("/used-discount", async (req, res) => {
     const { userid, discountcode } = req.body;
   
@@ -1374,6 +1134,74 @@ app.delete("/used-discount/:id", async (req, res) => {
     }
   });
   
+app.put("/users/:id/password", async (req, res) => {
+    const { id } = req.params;
+    const { oldPassword, newPassword } = req.body;
+  
+    try {
+      const user = await Users.findByPk(id);
+  
+      if (!user) {
+        return res.status(404).json({ error: "ไม่พบผู้ใช้" });
+      }
+  
+
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: "รหัสผ่านเดิมไม่ถูกต้อง" });
+      }
+  
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+  
+      await Users.update({ password: hashedNewPassword }, { where: { id } });
+  
+      res.json({ message: "เปลี่ยนรหัสผ่านสำเร็จ!" });
+    } catch (error) {
+      res.status(500).json({ error: "เกิดข้อผิดพลาด" });
+    }
+  });
+
+app.get('/orders/user/:userId', async (req, res) => {
+    const { userId } = req.params; 
+
+    try {
+        const orders = await Orders.findAll({
+            where: { userid: userId },
+            include: [{
+                model: Orderdetail,
+                include: {
+                    model: Products,
+                }
+            }]
+        });
+
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({ message: 'No orders found for this user' });
+        }
+
+        const orderData = orders.map(order => ({
+            id: order.id,
+            status: order.status,
+            userid: order.userid,
+            shippingaddress: order.shippingaddress,
+            discount: order.discountcode,
+            orderdetails: order.Orderdetails.map(orderdetail => ({
+                unitprice: orderdetail.unitprice,
+                quantity: orderdetail.quantity,
+                productid: orderdetail.productid,
+                product: orderdetail.Product, 
+                size: orderdetail.itemSize
+            }))
+        }));
+
+        res.json(orderData);
+
+    } catch (error) {
+        console.error('Error fetching orders for user:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
   
 process.on('SIGINT', async () => {
     await sequelize.close();
