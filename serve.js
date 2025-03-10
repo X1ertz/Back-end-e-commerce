@@ -221,14 +221,14 @@ app.get("/products", async (req, res) => {
           where: { discountcode: discount.discount_name },
         });
   
-        // ดึงข้อมูลผู้ใช้ที่ใช้คูปองนี้
+  
         const usersUsedDiscount = await UsedDiscounts.findAll({
           where: { discountcode: discount.discount_name },
           include: [
             {
-              model: Users,  // เชื่อมโยงกับโมเดล Users
-              required: false, // ใช้ false ถ้าไม่ต้องการให้เป็น INNER JOIN
-              attributes: ['id', 'username'], // ดึงข้อมูล id และ name ของผู้ใช้
+              model: Users, 
+              required: false, 
+              attributes: ['id', 'username'], 
             }
           ],
         });
@@ -320,7 +320,7 @@ app.put('/users/:id', async (req, res) => {
     console.log('Received update request xxx:', req.body);
 
     const userId = req.params.id;
-    const { username, email, password, role, adress } = req.body; // แก้ adress เป็น address
+    const { username, email, password, role, adress } = req.body; 
 
     try {
         const user = await Users.findByPk(userId);
@@ -460,7 +460,7 @@ const upload = multer({ storage });
 app.post("/products", upload.single("image"), async (req, res) => {
     try {
         const { productname, categoryID, unitprice, quantity, description, sizes } = req.body;
-        const imageurl = req.file ? `/uploads/${req.file.filename}` : null; // URL ของรูปภาพ
+        const imageurl = req.file ? `/uploads/${req.file.filename}` : null; 
 
         const newProduct = await Products.create({
             productname,
@@ -574,15 +574,12 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
     try {
         console.log("📌 Received Request Body:", req.body);
 
-        const { username, status, shippingAddress, discountCode } = req.body;
+        const { username, status, shippingAddress, discountCode, selectedSizes } = req.body;
         let products = [];
         let quantities = [];
 
-
         if (req.body.selectedProducts && req.body.quantities) {
-    
             try {
-     
                 if (typeof req.body.selectedProducts === 'string') {
                     products = JSON.parse(req.body.selectedProducts);
                 } else {
@@ -594,7 +591,6 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
                 } else {
                     quantities = req.body.quantities;
                 }
-
             } catch (error) {
                 return res.status(400).json({ message: "Invalid JSON format for selectedProducts or quantities" });
             }
@@ -602,22 +598,18 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
             return res.status(400).json({ message: "selectedProducts or quantities are missing" });
         }
 
-
         const image = req.file ? `/uploads/${req.file.filename}` : null;
 
-        console.log("📌 Parsed Data:", { products, quantities, username, status, shippingAddress, discountCode, image });
+        console.log("📌 Parsed Data:", { products, quantities, selectedSizes, username, status, shippingAddress, discountCode, image });
 
-    
-        if (!username || !products.length || !quantities.length || !image) {
+        if (!username || !products.length || !quantities.length || !selectedSizes || !image) {
             return res.status(400).json({ message: "Missing required fields", error: "Validation error" });
         }
-
 
         const user = await Users.findOne({ where: { username } });
         if (!user) {
             return res.status(400).json({ message: "User not found" });
         }
-
 
         const order = await Orders.create({
             userid: user.id,
@@ -639,14 +631,15 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
             }
 
             const unitPrice = product.unitprice;
-            console.log("xxxxxxx:",unitPrice)
             const quantity = quantities[i];
+            const size = selectedSizes[i]; 
             const totalPrice = unitPrice * quantity;
             totalAmount += totalPrice;
 
             orderDetails.push({
                 orderid: order.id,
                 productid: products[i],
+                size: size, 
                 unitprice: unitPrice,
                 quantity,
                 createdAt: new Date(),
@@ -655,7 +648,6 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
         }
 
         await Orders.update({ totalAmount }, { where: { id: order.id } });
-
         await Orderdetail.bulkCreate(orderDetails);
         console.log("✅ Order Details Saved!");
 
@@ -676,6 +668,7 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
         res.status(500).json({ message: "Failed to place order", error: error.message });
     }
 });
+
 
 app.post('/discounts/check', async (req, res) => {
     const { code } = req.body;
@@ -750,6 +743,7 @@ app.get('/orders/:id', async (req, res) => {
             paymentproof: order.paymentproof,
             shippingaddress: order.shippingaddress,
             discount:order.discountcode,
+            total:order.total,
             orderdetails: order.Orderdetails.map(orderdetail => ({
                 unitprice: orderdetail.unitprice,
                 quantity: orderdetail.quantity,
@@ -773,7 +767,6 @@ app.put("/orders/:orderId", async (req, res) => {
     try {
         const { orderId } = req.params;
         const { status, shippingaddress, size } = req.body;
-
         const order = await Orders.findByPk(orderId);
         if (!order) {
             return res.status(404).json({ message: "Order not found" });
@@ -858,20 +851,17 @@ app.put('/orders/:orderId/items/:productId', async (req, res) => {
 app.post('/orders/:orderId/add-product', async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { productid, quantity } = req.body;
+        const { productid, quantity, size } = req.body;
         console.log(req.body);
-        
 
         if (!productid || !quantity || quantity <= 0) {
             return res.status(400).json({ message: 'Invalid product data' });
         }
 
-  
         const order = await Orders.findByPk(orderId);
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
-
 
         const product = await Products.findByPk(productid);
         if (!product) {
@@ -879,7 +869,6 @@ app.post('/orders/:orderId/add-product', async (req, res) => {
         }
 
         const unitprice = product.unitprice;
-
 
         let orderDetail = await Orderdetail.findOne({
             where: { orderid: orderId, productid }
@@ -893,9 +882,28 @@ app.post('/orders/:orderId/add-product', async (req, res) => {
                 orderid: orderId,
                 productid,
                 quantity,
-                unitprice 
+                unitprice,
+                itemSize: size
             });
         }
+
+        const updatedOrderDetails = await Orderdetail.findAll({
+            where: { orderid: orderId }
+        });
+
+        let newTotal = 0;
+        updatedOrderDetails.forEach(item => {
+            newTotal += item.unitprice * item.quantity;
+        });
+
+        if (order.discountcode) {
+            const discount = await DiscountCode.findByPk(order.discountcode);
+            if (discount) {
+                newTotal = newTotal - (newTotal * discount.percentage) / 100;
+            }
+        }
+
+        await order.update({ total: newTotal });
 
         const updatedOrder = await Orders.findOne({
             where: { id: orderId },
@@ -1202,7 +1210,62 @@ app.get('/orders/user/:userId', async (req, res) => {
     }
 });
 
-  
+app.get("/reports", async (req, res) => {
+    try {
+
+        const orders = await Orders.findAll({
+            include: [
+                {
+                    model: Users,
+                    attributes: ["username", "email"],
+                },
+                {
+                    model: Orderdetail,
+                    include: [
+                        {
+                            model: Products,
+                            attributes: ["productname", "unitprice"],
+                            include: [{ model: Category, attributes: ["Categoryname"] }],
+                        },
+                    ],
+                },
+            ],
+        });
+
+        const discounts = await DiscountCode.findAll({
+            attributes: ["id", "discount_name", "percentage"]
+        });
+
+        const discountMap = discounts.reduce((acc, discount) => {
+            acc[discount.id] = {
+                name: discount.discount_name,
+                percentage: discount.percentage
+            };
+            return acc;
+        }, {});
+
+
+        const formattedOrders = orders.flatMap(order =>
+            order.Orderdetails.map(detail => ({
+                id: order.id,
+                status: order.status,
+                user: order.User,
+                product: detail.Product,
+                quantity: detail.quantity,
+                unitprice: detail.unitprice,
+                discount_name: discountMap[order.discountcode]?.name || "No Discount", 
+                discount_percentage: discountMap[order.discountcode]?.percentage || 0,
+            }))
+        );
+
+        res.json(formattedOrders);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+
 process.on('SIGINT', async () => {
     await sequelize.close();
     console.log('SQLite connection closed.');
