@@ -23,7 +23,7 @@ app.use(session({
 // Middlewares
 app.use(express.json());
 app.use(cors({
-    origin: 'http://localhost:5500',
+    origin: 'http://0.0.0.0:5500',
     credentials: true
 }));
 
@@ -1248,5 +1248,5 @@ process.on('SIGINT', async () => {
 });
 
 app.listen(port, () => {
-    console.log(`http://localhost:${port}}`);
+    console.log(`http://0.0.0.0:${port}}`);
   });
