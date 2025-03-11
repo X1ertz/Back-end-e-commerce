@@ -60,7 +60,7 @@ const Category = sequelize.define('Category', {
     },
     Categoryname: {
         type: DataTypes.STRING,
-        allowNull: true
+        allowNull: false
     }
 });
 
@@ -191,10 +191,6 @@ const Orderdetail = sequelize.define('Orderdetail', {
             model: Products,
             key: 'id'
         },
-        allowNull: true
-    },
-    discount: {
-        type: DataTypes.INTEGER,
         allowNull: true
     },
     itemSize:{

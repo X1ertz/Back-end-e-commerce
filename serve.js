@@ -57,7 +57,7 @@ app.get('/', (req, res) => {
 app.post('/users', async (req, res) => {
     console.log('Received data from frontend:', req.body); 
 
-    const { username, email, password,role ,adress} = req.body;
+    const { username, email, password, role ,adress} = req.body;
 
     
     if (!username || !email || !password) {
@@ -117,25 +117,6 @@ app.get("/users/:userId", async (req, res) => {
     }
 });
 
-app.get('/user', async (req, res) => {
-    if (!req.session.userId) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    try {
-        const user = await Users.findOne({ where: { id: req.session.userId } });
-        console.log("Session Data:", req.session);
-        console.log(req.session.userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        return res.json({ id: user.id, username: user.username });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Internal Server Error' });
-    }
-});
 app.get("/users", async (req, res) => {
     try {
       const users = await Users.findAll();
@@ -317,8 +298,6 @@ app.post('/login', async (req, res) => {
 
 
 app.put('/users/:id', async (req, res) => {
-    console.log('Received update request xxx:', req.body);
-
     const userId = req.params.id;
     const { username, email, password, role, adress } = req.body; 
 
@@ -339,7 +318,7 @@ app.put('/users/:id', async (req, res) => {
             username: username || user.username,
             email: email || user.email,
             role: role || user.role,
-            address: adress || user.adress,
+            adress: adress || user.adress,
         };
 
         if (password) {
@@ -1212,7 +1191,6 @@ app.get('/orders/user/:userId', async (req, res) => {
 
 app.get("/reports", async (req, res) => {
     try {
-
         const orders = await Orders.findAll({
             include: [
                 {
@@ -1231,11 +1209,9 @@ app.get("/reports", async (req, res) => {
                 },
             ],
         });
-
         const discounts = await DiscountCode.findAll({
             attributes: ["id", "discount_name", "percentage"]
         });
-
         const discountMap = discounts.reduce((acc, discount) => {
             acc[discount.id] = {
                 name: discount.discount_name,
@@ -1243,11 +1219,10 @@ app.get("/reports", async (req, res) => {
             };
             return acc;
         }, {});
-
-
         const formattedOrders = orders.flatMap(order =>
             order.Orderdetails.map(detail => ({
                 id: order.id,
+                total:order.total,
                 status: order.status,
                 user: order.User,
                 product: detail.Product,

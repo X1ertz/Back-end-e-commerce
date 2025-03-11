@@ -111,7 +111,7 @@ const insertData = async () => {
         categoryID: 1,  
         unitprice: 499,
         quantity: 30,
-        imageurl: "/asset/images/shirt.png",
+        imageurl: "/uploads/shirt.png",
         description: "A comfortable casual shirt.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 10 },
@@ -124,7 +124,7 @@ const insertData = async () => {
         categoryID: 2,  
         unitprice: 799,
         quantity: 25,
-        imageurl: "/asset/images/denims.png",
+        imageurl: "/uploads/denims.png",
         description: "Stylish and slim fit jeans.",
         sizes: JSON.stringify([
           { sizeName: "M", stock: 10 },
@@ -137,7 +137,7 @@ const insertData = async () => {
         categoryID: 1,  
         unitprice: 599,
         quantity: 20,
-        imageurl: "/asset/images/redboy.png",
+        imageurl: "/uploads/redboy.png",
         description: "A stylish polo shirt for casual wear.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 7 },
@@ -150,7 +150,7 @@ const insertData = async () => {
         categoryID: 1,  
         unitprice: 899,
         quantity: 15,
-        imageurl: "/asset/images/suit.png",
+        imageurl: "/uploads/suit.png",
         description: "Comfortable chinos for work or leisure.",
         sizes: JSON.stringify([
           { sizeName: "M", stock: 5 },
@@ -163,7 +163,7 @@ const insertData = async () => {
         categoryID: 3,  
         unitprice: 1299,
         quantity: 40,
-        imageurl: "/asset/images/sneaker.png",
+        imageurl: "/uploads/sneaker.png",
         description: "Classic white sneakers for everyday wear.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 10 },
@@ -176,7 +176,7 @@ const insertData = async () => {
         categoryID: 1, 
         unitprice: 399,
         quantity: 60,
-        imageurl: "/asset/images/tshirt.png",
+        imageurl: "/uploads/tshirt.png",
         description: "Basic T-shirt, comfortable and versatile.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 20 },
@@ -189,7 +189,7 @@ const insertData = async () => {
         categoryID: 2,  
         unitprice: 599,
         quantity: 35,
-        imageurl: "/asset/images/spplant.png",
+        imageurl: "/uploads/spplant.png",
         description: "Perfect for sports and exercise.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 10 },
@@ -202,7 +202,7 @@ const insertData = async () => {
         categoryID: 1,  
         unitprice: 899,
         quantity: 20,
-        imageurl: "/asset/images/formal.png",
+        imageurl: "/uploads/formal.png",
         description: "A stylish formal shirt for office wear.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 5 },
@@ -215,7 +215,7 @@ const insertData = async () => {
         categoryID: 1,  
         unitprice: 1299,
         quantity: 15,
-        imageurl: "/asset/images/hood.png",
+        imageurl: "/uploads/hood.png",
         description: "A trendy denim jacket for all occasions.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 3 },
@@ -228,7 +228,7 @@ const insertData = async () => {
         categoryID: 2,  
         unitprice: 1199,
         quantity: 25,
-        imageurl: "/asset/images/jean.png",
+        imageurl: "/uploads/jean.png",
         description: "Classic blue denim jeans.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 8 },
@@ -241,7 +241,7 @@ const insertData = async () => {
         categoryID: 2,  
         unitprice: 999,
         quantity: 18,
-        imageurl: "/asset/images/chino.png",
+        imageurl: "/uploads/chino.png",
         description: "Comfortable and stylish chino pants.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 4 },
@@ -254,7 +254,7 @@ const insertData = async () => {
         categoryID: 2,  
         unitprice: 1099,
         quantity: 22,
-        imageurl: "/asset/images/cargo.png",
+        imageurl: "/uploads/cargo.png",
         description: "Durable cargo pants with multiple pockets.",
         sizes: JSON.stringify([
           { sizeName: "S", stock: 6 },
