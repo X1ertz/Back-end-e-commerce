@@ -23,7 +23,7 @@ app.use(session({
 // Middlewares
 app.use(express.json());
 app.use(cors({
-    origin: 'http://0.0.0.0:5500',
+    origin: 'https://front-end-e-commerce-nlfg.onrender.com',
     credentials: true
 }));
 
