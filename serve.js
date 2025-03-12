@@ -23,7 +23,7 @@ app.use(session({
 // Middlewares
 app.use(express.json());
 app.use(cors({
-    origin: 'https://front-end-e-commerce-pi.vercel.app/',
+    origin: 'https://luxe-store-pi.vercel.app',
     credentials: true
 }));
 
