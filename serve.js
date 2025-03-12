@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(session({
-    secret: 'your_secret_key', 
+    secret: 'your_secret_key',
     resave: false,
     saveUninitialized: true,
     cookie: { secure: false }
@@ -23,7 +23,7 @@ app.use(session({
 // Middlewares
 app.use(express.json());
 app.use(cors({
-    origin: 'https://front-end-e-commerce-nlfg.onrender.com',
+    origin: 'https://front-end-e-commerce-pi.vercel.app/',
     credentials: true
 }));
 
@@ -50,18 +50,18 @@ sequelize.authenticate()
     });
 
 app.get('/', (req, res) => {
-  res.send('Hello from backend!');
+    res.send('Hello from backend!');
 });
 
 
 app.post('/users', async (req, res) => {
-    console.log('Received data from frontend:', req.body); 
+    console.log('Received data from frontend:', req.body);
 
-    const { username, email, password, role ,adress} = req.body;
+    const { username, email, password, role, adress } = req.body;
 
-    
+
     if (!username || !email || !password) {
-      return res.status(400).json({ message: 'Missing required fields' });
+        return res.status(400).json({ message: 'Missing required fields' });
     }
 
     try {
@@ -74,7 +74,7 @@ app.post('/users', async (req, res) => {
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        
+
         console.log('Hashed password:', hashedPassword);
 
         const newUser = await Users.create({
@@ -82,7 +82,7 @@ app.post('/users', async (req, res) => {
             email: email,
             password: hashedPassword,
             role: role,
-            adress:adress
+            adress: adress
         });
 
         return res.status(201).json({
@@ -91,7 +91,7 @@ app.post('/users', async (req, res) => {
                 id: newUser.id,
                 username: newUser.username,
                 email: newUser.email,
-                adress:newUser.adress
+                adress: newUser.adress
             },
         });
     } catch (error) {
@@ -103,7 +103,7 @@ app.get("/users/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
         const user = await Users.findByPk(userId, {
-            attributes: ["id", "username", "email","role","adress"],
+            attributes: ["id", "username", "email", "role", "adress"],
         });
 
         if (!user) {
@@ -119,23 +119,23 @@ app.get("/users/:userId", async (req, res) => {
 
 app.get("/users", async (req, res) => {
     try {
-      const users = await Users.findAll();
-      res.json(users);
+        const users = await Users.findAll();
+        res.json(users);
     } catch (error) {
-      res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ error: "Internal Server Error" });
     }
-  });
+});
 app.delete("/users/:id", async (req, res) => {
     try {
-      const user = await Users.findByPk(req.params.id);
-      if (!user) return res.status(404).json({ error: "User not found" });
-  
-      await user.destroy();
-      res.json({ message: "User deleted" });
+        const user = await Users.findByPk(req.params.id);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        await user.destroy();
+        res.json({ message: "User deleted" });
     } catch (error) {
-      res.status(400).json({ error: "Failed to delete user" });
+        res.status(400).json({ error: "Failed to delete user" });
     }
-  });
+});
 
 app.post('/login', async (req, res) => {
     console.log('Received login request:', req.body);
@@ -147,14 +147,14 @@ app.post('/login', async (req, res) => {
     }
 
     try {
-       
+
         const user = await Users.findOne({ where: { email } });
 
         if (!user) {
             return res.status(400).json({ message: 'Invalid email' });
         }
 
- 
+
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         console.log("Compare Result:", isPasswordValid);
@@ -163,7 +163,7 @@ app.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Invalid password' });
         }
 
- 
+
         req.session.userId = user.id;
         req.session.username = user.username;
 
@@ -184,51 +184,51 @@ app.post('/login', async (req, res) => {
 
 app.get("/products", async (req, res) => {
     try {
-      const products = await Products.findAll();
-      res.json(products);
+        const products = await Products.findAll();
+        res.json(products);
     } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+        console.error("Error fetching products:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-  });
+});
 
-  app.get("/discount", async (req, res) => {
+app.get("/discount", async (req, res) => {
     try {
-      const discounts = await DiscountCode.findAll();
-  
-      const discountsWithUsageDetails = [];
-      for (let discount of discounts) {
-        const usageCount = await UsedDiscounts.count({
-          where: { discountcode: discount.discount_name },
-        });
-  
-  
-        const usersUsedDiscount = await UsedDiscounts.findAll({
-          where: { discountcode: discount.discount_name },
-          include: [
-            {
-              model: Users, 
-              required: false, 
-              attributes: ['id', 'username'], 
-            }
-          ],
-        });
-  
-        discountsWithUsageDetails.push({
-          ...discount.toJSON(),
-          usageCount,
-          usersUsedDiscount,
-        });
-      }
-  
-      res.status(200).json(discountsWithUsageDetails);
+        const discounts = await DiscountCode.findAll();
+
+        const discountsWithUsageDetails = [];
+        for (let discount of discounts) {
+            const usageCount = await UsedDiscounts.count({
+                where: { discountcode: discount.discount_name },
+            });
+
+
+            const usersUsedDiscount = await UsedDiscounts.findAll({
+                where: { discountcode: discount.discount_name },
+                include: [
+                    {
+                        model: Users,
+                        required: false,
+                        attributes: ['id', 'username'],
+                    }
+                ],
+            });
+
+            discountsWithUsageDetails.push({
+                ...discount.toJSON(),
+                usageCount,
+                usersUsedDiscount,
+            });
+        }
+
+        res.status(200).json(discountsWithUsageDetails);
     } catch (error) {
-      res.status(500).json({ message: "ไม่สามารถดึงข้อมูลคูปองได้", error });
+        res.status(500).json({ message: "ไม่สามารถดึงข้อมูลคูปองได้", error });
     }
-  });
-  
-  
-  app.get("/discount/:discountId", async (req, res) => {
+});
+
+
+app.get("/discount/:discountId", async (req, res) => {
     try {
         const { discountId } = req.params;
         const discount = await DiscountCode.findByPk(discountId, {
@@ -257,28 +257,28 @@ app.post('/login', async (req, res) => {
     }
 
     try {
-       
+
         const user = await Users.findOne({ where: { email } });
 
         if (!user) {
             return res.status(400).json({ message: 'Invalid email ' });
         }
 
-       
-        console.log('Stored hashed password:', user.password); 
-        console.log('Password entered by user:', password); 
 
-    
+        console.log('Stored hashed password:', user.password);
+        console.log('Password entered by user:', password);
+
+
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
-      
+
         console.log('Password valid:', isPasswordValid);
 
         if (!isPasswordValid) {
             return res.status(400).json({ message: 'Invalid password' });
         }
 
-     
+
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET_KEY, { expiresIn: process.env.JWT_EXPIRATION });
 
         return res.status(200).json({
@@ -299,7 +299,7 @@ app.post('/login', async (req, res) => {
 
 app.put('/users/:id', async (req, res) => {
     const userId = req.params.id;
-    const { username, email, password, role, adress } = req.body; 
+    const { username, email, password, role, adress } = req.body;
 
     try {
         const user = await Users.findByPk(userId);
@@ -345,14 +345,14 @@ app.put('/users/:id', async (req, res) => {
 });
 
 
-app.get('/categories',async(req,res)=>{
+app.get('/categories', async (req, res) => {
     try {
         const categories = await Category.findAll();
         res.json(categories);
-      } catch (error) {
+    } catch (error) {
         console.error("Error fetching categories:", error);
         res.status(500).json({ error: "Internal Server Error" });
-      }
+    }
 });
 
 app.post('/categories', async (req, res) => {
@@ -428,18 +428,18 @@ app.delete('/products/:id', async (req, res) => {
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, "uploads/");
+        cb(null, "uploads/");
     },
     filename: (req, file, cb) => {
-      cb(null, `${Date.now()}-${file.originalname}`);
+        cb(null, `${Date.now()}-${file.originalname}`);
     },
-  });
-  
+});
+
 const upload = multer({ storage });
 app.post("/products", upload.single("image"), async (req, res) => {
     try {
         const { productname, categoryID, unitprice, quantity, description, sizes } = req.body;
-        const imageurl = req.file ? `/uploads/${req.file.filename}` : null; 
+        const imageurl = req.file ? `/uploads/${req.file.filename}` : null;
 
         const newProduct = await Products.create({
             productname,
@@ -493,63 +493,63 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.post("/order", upload.single("paymentProof"), async (req, res) => {
     try {
-      const userId = req.body.userId;
-      const items = JSON.parse(req.body.items);
-      const totalAmount = req.body.totalAmount;
-      const discountUsed = req.body.discountUsed ? JSON.parse(req.body.discountUsed) : null;
-      const shippingAddress = req.body.shippingAddress;
-      const paymentProofPath = req.file ? `/uploads/${req.file.filename}` : null;
-  
-      console.log("📌 Received Order Data:", req.body);
-  
-      if (!userId || !items || !totalAmount || !paymentProofPath) {
-        return res.status(400).json({ message: "Missing required fields", error: "Validation error" });
-      }
-  
-      const user = await Users.findByPk(userId);
-      if (!user) {
-        return res.status(400).json({ message: "User not found" });
-      }
-  
-      const order = await Orders.create({
-        userid: userId,
-        discountcode: discountUsed ? discountUsed.id : 0,
-        status: "pending",
-        shippingaddress: shippingAddress,
-        paymentproof: paymentProofPath,
-        total:totalAmount
-      });
-  
-      console.log("✅ Order Created:", order.id);
-  
-      const orderDetails = items.map((item) => ({
-        orderid: order.id,
-        productid: item.productId,
-        unitprice: item.unitPrice,
-        quantity: item.quantity,
-        itemSize: item.sizes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-  
-      await Orderdetail.bulkCreate(orderDetails);
-      console.log("✅ Order Details Saved!");
-  
-      if (discountUsed) {
-        await UsedDiscounts.create({
-          userid: userId,
-          discountcode: discountUsed.code,
+        const userId = req.body.userId;
+        const items = JSON.parse(req.body.items);
+        const totalAmount = req.body.totalAmount;
+        const discountUsed = req.body.discountUsed ? JSON.parse(req.body.discountUsed) : null;
+        const shippingAddress = req.body.shippingAddress;
+        const paymentProofPath = req.file ? `/uploads/${req.file.filename}` : null;
+
+        console.log("📌 Received Order Data:", req.body);
+
+        if (!userId || !items || !totalAmount || !paymentProofPath) {
+            return res.status(400).json({ message: "Missing required fields", error: "Validation error" });
+        }
+
+        const user = await Users.findByPk(userId);
+        if (!user) {
+            return res.status(400).json({ message: "User not found" });
+        }
+
+        const order = await Orders.create({
+            userid: userId,
+            discountcode: discountUsed ? discountUsed.id : 0,
+            status: "pending",
+            shippingaddress: shippingAddress,
+            paymentproof: paymentProofPath,
+            total: totalAmount
         });
-        console.log("✅ Used Discount Saved!");
-      }
-  
-      res.status(201).json({ message: "Order placed successfully!", orderId: order.id });
+
+        console.log("✅ Order Created:", order.id);
+
+        const orderDetails = items.map((item) => ({
+            orderid: order.id,
+            productid: item.productId,
+            unitprice: item.unitPrice,
+            quantity: item.quantity,
+            itemSize: item.sizes,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }));
+
+        await Orderdetail.bulkCreate(orderDetails);
+        console.log("✅ Order Details Saved!");
+
+        if (discountUsed) {
+            await UsedDiscounts.create({
+                userid: userId,
+                discountcode: discountUsed.code,
+            });
+            console.log("✅ Used Discount Saved!");
+        }
+
+        res.status(201).json({ message: "Order placed successfully!", orderId: order.id });
     } catch (error) {
-      console.error("❌ Error saving order:", error);
-      res.status(500).json({ message: "Failed to place order", error: error.message });
+        console.error("❌ Error saving order:", error);
+        res.status(500).json({ message: "Failed to place order", error: error.message });
     }
-  });
-  app.post("/admin/order", upload.single("image"), async (req, res) => {
+});
+app.post("/admin/order", upload.single("image"), async (req, res) => {
     try {
         console.log("📌 Received Request Body:", req.body);
 
@@ -611,14 +611,14 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
 
             const unitPrice = product.unitprice;
             const quantity = quantities[i];
-            const size = selectedSizes[i]; 
+            const size = selectedSizes[i];
             const totalPrice = unitPrice * quantity;
             totalAmount += totalPrice;
 
             orderDetails.push({
                 orderid: order.id,
                 productid: products[i],
-                size: size, 
+                size: size,
                 unitprice: unitPrice,
                 quantity,
                 createdAt: new Date(),
@@ -651,10 +651,10 @@ app.post("/order", upload.single("paymentProof"), async (req, res) => {
 
 app.post('/discounts/check', async (req, res) => {
     const { code } = req.body;
-    console.log("Received code:", code); 
+    console.log("Received code:", code);
     try {
         const discount = await DiscountCode.findOne({ where: { discount_name: code } });
-        
+
         const Useddiscount = await UsedDiscounts.findOne({ where: { discountcode: code } });
 
         if (Useddiscount) {
@@ -676,7 +676,7 @@ app.post('/discounts/check', async (req, res) => {
         return res.json({
             percentage: discount.percentage,
             id: discount.id,
-            code:discount.discount_name,
+            code: discount.discount_name,
             message: `✅ Applied ${discount.percentage}% discount`
         });
 
@@ -685,13 +685,13 @@ app.post('/discounts/check', async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 });
-app.get('/orders',async(req,res)=>{
-    try{
+app.get('/orders', async (req, res) => {
+    try {
         const orders = await Orders.findAll();
         res.json(orders);
-    }catch(error){
-        console.log("Error to get orders",error);
-        return res.status(400).json({message:"Internal Server Error"})
+    } catch (error) {
+        console.log("Error to get orders", error);
+        return res.status(400).json({ message: "Internal Server Error" })
     }
 });
 
@@ -721,13 +721,13 @@ app.get('/orders/:id', async (req, res) => {
             userid: order.userid,
             paymentproof: order.paymentproof,
             shippingaddress: order.shippingaddress,
-            discount:order.discountcode,
-            total:order.total,
+            discount: order.discountcode,
+            total: order.total,
             orderdetails: order.Orderdetails.map(orderdetail => ({
                 unitprice: orderdetail.unitprice,
                 quantity: orderdetail.quantity,
                 productid: orderdetail.productid,
-                product: orderdetail.Product, 
+                product: orderdetail.Product,
                 size: orderdetail.itemSize
             }))
         };
@@ -763,7 +763,7 @@ app.put("/orders/:orderId", async (req, res) => {
 });
 app.patch('/products/:productId/update-stock', async (req, res) => {
     const { productId } = req.params;
-    const { size, quantity } = req.body; 
+    const { size, quantity } = req.body;
     try {
         const product = await Products.findByPk(productId);
         if (!product) {
@@ -782,7 +782,7 @@ app.patch('/products/:productId/update-stock', async (req, res) => {
             return res.status(400).json({ message: 'Insufficient stock for this size' });
         }
 
-        selectedSize.stock += quantity;  
+        selectedSize.stock += quantity;
         const updatedTotalQuantity = sizes.reduce((acc, curr) => acc + curr.stock, 0);
         product.quantity = updatedTotalQuantity;
 
@@ -811,11 +811,11 @@ app.put('/orders/:orderId/items/:productId', async (req, res) => {
             return res.status(404).json({ message: 'Order item not found' });
         }
 
-        
+
         orderDetail.quantity = quantity;
         await orderDetail.save();
 
-        
+
         const updatedOrder = await Orders.findOne({
             where: { id: orderId },
             include: [{ model: Orderdetail }]
@@ -911,7 +911,7 @@ app.delete('/orders/:orderId/item/:itemId', async (req, res) => {
     }
 });
 app.delete('/orders/:orderId', async (req, res) => {
-    const { orderId} = req.params;
+    const { orderId } = req.params;
     try {
         const result = await Orders.destroy({ where: { id: orderId } });
         if (result) {
@@ -1038,118 +1038,118 @@ app.put("/discount/:id", async (req, res) => {
 });
 app.get("/used-discounts", async (req, res) => {
     try {
-      const usedDiscounts = await UsedDiscounts.findAll({
-        include: [
-          {
-            model: Users,
-            attributes: ['id', 'username'],
-          },
-          {
-            model: DiscountCode,
-            attributes: ['id', 'discount_name'],
-          },
-        ],
-      });
-  
-      res.status(200).json(usedDiscounts);
+        const usedDiscounts = await UsedDiscounts.findAll({
+            include: [
+                {
+                    model: Users,
+                    attributes: ['id', 'username'],
+                },
+                {
+                    model: DiscountCode,
+                    attributes: ['id', 'discount_name'],
+                },
+            ],
+        });
+
+        res.status(200).json(usedDiscounts);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch used discounts", error });
+        res.status(500).json({ message: "Failed to fetch used discounts", error });
     }
-  });
-    
+});
+
 app.post("/used-discount", async (req, res) => {
     const { userid, discountcode } = req.body;
-  
+
     if (!userid || !discountcode) {
-      return res.status(400).json({ message: "Invalid data" });
+        return res.status(400).json({ message: "Invalid data" });
     }
-  
+
     try {
-      const newUsedDiscount = await UsedDiscounts.create({
-        userid,
-        discountcode,
-      });
-  
-      res.status(201).json(newUsedDiscount);
+        const newUsedDiscount = await UsedDiscounts.create({
+            userid,
+            discountcode,
+        });
+
+        res.status(201).json(newUsedDiscount);
     } catch (error) {
-      res.status(500).json({ message: "Failed to create used discount", error });
+        res.status(500).json({ message: "Failed to create used discount", error });
     }
-  });
+});
 
 app.delete("/used-discount/:id", async (req, res) => {
     const { id } = req.params;
-  
-    try {
-      const deletedDiscount = await UsedDiscounts.destroy({
-        where: { id }
-      });
-  
-      if (!deletedDiscount) {
-        return res.status(404).json({ message: "Used discount not found" });
-      }
-  
-      res.status(200).json({ message: "Used discount deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete used discount", error });
-    }
-  });
 
-  app.put("/used-discount/:id", async (req, res) => {
+    try {
+        const deletedDiscount = await UsedDiscounts.destroy({
+            where: { id }
+        });
+
+        if (!deletedDiscount) {
+            return res.status(404).json({ message: "Used discount not found" });
+        }
+
+        res.status(200).json({ message: "Used discount deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to delete used discount", error });
+    }
+});
+
+app.put("/used-discount/:id", async (req, res) => {
     const { id } = req.params;
     const { userid, discountcode } = req.body;
-  
+
     if (!userid || !discountcode) {
-      return res.status(400).json({ message: "Invalid data" });
+        return res.status(400).json({ message: "Invalid data" });
     }
-  
+
     try {
 
-      const usedDiscount = await UsedDiscounts.findByPk(id);
-  
-      if (!usedDiscount) {
-        return res.status(404).json({ message: "Used discount not found" });
-      }
-  
-      usedDiscount.userid = userid;
-      usedDiscount.discountcode = discountcode;
-      
-      await usedDiscount.save();
-  
-      res.status(200).json({ message: "Used discount updated successfully" });
+        const usedDiscount = await UsedDiscounts.findByPk(id);
+
+        if (!usedDiscount) {
+            return res.status(404).json({ message: "Used discount not found" });
+        }
+
+        usedDiscount.userid = userid;
+        usedDiscount.discountcode = discountcode;
+
+        await usedDiscount.save();
+
+        res.status(200).json({ message: "Used discount updated successfully" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to update used discount", error });
+        res.status(500).json({ message: "Failed to update used discount", error });
     }
-  });
-  
+});
+
 app.put("/users/:id/password", async (req, res) => {
     const { id } = req.params;
     const { oldPassword, newPassword } = req.body;
-  
-    try {
-      const user = await Users.findByPk(id);
-  
-      if (!user) {
-        return res.status(404).json({ error: "ไม่พบผู้ใช้" });
-      }
-  
 
-      const isMatch = await bcrypt.compare(oldPassword, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ error: "รหัสผ่านเดิมไม่ถูกต้อง" });
-      }
-  
-      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-  
-      await Users.update({ password: hashedNewPassword }, { where: { id } });
-  
-      res.json({ message: "เปลี่ยนรหัสผ่านสำเร็จ!" });
+    try {
+        const user = await Users.findByPk(id);
+
+        if (!user) {
+            return res.status(404).json({ error: "ไม่พบผู้ใช้" });
+        }
+
+
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: "รหัสผ่านเดิมไม่ถูกต้อง" });
+        }
+
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+        await Users.update({ password: hashedNewPassword }, { where: { id } });
+
+        res.json({ message: "เปลี่ยนรหัสผ่านสำเร็จ!" });
     } catch (error) {
-      res.status(500).json({ error: "เกิดข้อผิดพลาด" });
+        res.status(500).json({ error: "เกิดข้อผิดพลาด" });
     }
-  });
+});
 
 app.get('/orders/user/:userId', async (req, res) => {
-    const { userId } = req.params; 
+    const { userId } = req.params;
 
     try {
         const orders = await Orders.findAll({
@@ -1176,7 +1176,7 @@ app.get('/orders/user/:userId', async (req, res) => {
                 unitprice: orderdetail.unitprice,
                 quantity: orderdetail.quantity,
                 productid: orderdetail.productid,
-                product: orderdetail.Product, 
+                product: orderdetail.Product,
                 size: orderdetail.itemSize
             }))
         }));
@@ -1222,13 +1222,13 @@ app.get("/reports", async (req, res) => {
         const formattedOrders = orders.flatMap(order =>
             order.Orderdetails.map(detail => ({
                 id: order.id,
-                total:order.total,
+                total: order.total,
                 status: order.status,
                 user: order.User,
                 product: detail.Product,
                 quantity: detail.quantity,
                 unitprice: detail.unitprice,
-                discount_name: discountMap[order.discountcode]?.name || "No Discount", 
+                discount_name: discountMap[order.discountcode]?.name || "No Discount",
                 discount_percentage: discountMap[order.discountcode]?.percentage || 0,
             }))
         );
