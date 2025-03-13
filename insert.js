@@ -1,5 +1,5 @@
 const { Sequelize, DataTypes } = require("sequelize");
-
+const bcrypt = require("bcrypt");
 // เชื่อมต่อ SQLite Database
 const sequelize = new Sequelize({
   dialect: "sqlite",
@@ -110,7 +110,20 @@ const Users = sequelize.define('Users', {
   }
  
 });
-// ฟังก์ชัน Insert ข้อมูล
+async function seedUsers() {
+  const hashedPassword = await bcrypt.hash("admin123", 10); // Hash password
+  await Users.bulkCreate([
+    {
+      username: "admin",
+      password: hashedPassword,
+      email: "admin@example.com",
+      role: "admin",
+      address: "123 Admin Street, Bangkok",
+    },
+  ]);
+  console.log("✅ Users seeded successfully!");
+}
+
 const insertData = async () => {
   try {
     await sequelize.sync({ force: true });
@@ -292,15 +305,10 @@ const insertData = async () => {
         ])
       }
     ]);
-    await Users.bulkCreate([
-      {
-        username: "admin",
-        password: "admin123",
-        email: "admin@example.com",
-        role: "admin",
-        adress: "123 Admin Street, Bangkok"
-      }
-    ]);
+    const bcrypt = require("bcrypt");
+
+    await seedUsers();
+
     console.log("✅ Products inserted successfully!");
   } catch (error) {
     console.error("❌ Error inserting data:", error);
