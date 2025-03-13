@@ -79,7 +79,36 @@ const DiscountCode = sequelize.define('DiscountCode',{
     type: DataTypes.INTEGER,
     allowNull: true
 }
-
+});
+const Users = sequelize.define('Users', {
+  id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false
+  },
+  username: {
+      type: DataTypes.STRING,
+      allowNull: false,
+  },
+  password: {
+      type: DataTypes.STRING,
+      allowNull: false
+  },
+  email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+  },
+  role: {
+      type: DataTypes.STRING,
+      defaultValue: 'member',
+  },
+  adress:{
+      type: DataTypes.STRING,
+      allowNull: true,
+  }
+ 
 });
 // ฟังก์ชัน Insert ข้อมูล
 const insertData = async () => {
@@ -263,7 +292,15 @@ const insertData = async () => {
         ])
       }
     ]);
-
+    await Users.bulkCreate([
+      {
+        username: "admin",
+        password: "admin123",
+        email: "admin@example.com",
+        role: "admin",
+        adress: "123 Admin Street, Bangkok"
+      }
+    ]);
     console.log("✅ Products inserted successfully!");
   } catch (error) {
     console.error("❌ Error inserting data:", error);
